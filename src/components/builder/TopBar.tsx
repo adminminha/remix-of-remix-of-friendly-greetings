@@ -1,8 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Bird, Save, ExternalLink, Rocket, Settings, ChevronDown, Check, Loader2,
-  Monitor, Tablet, Smartphone, RefreshCw, Maximize2, Download
+  Monitor, Tablet, Smartphone, RefreshCw, Maximize2, Download, Code
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,12 +27,15 @@ interface TopBarProps {
   onExport?: () => void;
   isSaving?: boolean;
   lastSavedText?: string | null;
-  // New props for device switching
+  // Device switching
   device?: DeviceType;
   onDeviceChange?: (device: DeviceType) => void;
   onRefresh?: () => void;
   onFullscreen?: () => void;
   isRefreshing?: boolean;
+  // Dev mode
+  isDevMode?: boolean;
+  onToggleDevMode?: () => void;
 }
 
 const TopBar = ({
@@ -49,6 +52,8 @@ const TopBar = ({
   onRefresh,
   onFullscreen,
   isRefreshing = false,
+  isDevMode = false,
+  onToggleDevMode,
 }: TopBarProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState(projectName);
@@ -148,6 +153,19 @@ const TopBar = ({
           onClick={onFullscreen}
         >
           <Maximize2 className="h-4 w-4" />
+        </Button>
+
+        <div className="h-6 w-px bg-border" />
+
+        {/* Dev Mode Toggle */}
+        <Button 
+          variant={isDevMode ? "default" : "ghost"}
+          size="sm" 
+          className={cn("h-8 gap-1.5", isDevMode && "bg-primary")}
+          onClick={onToggleDevMode}
+        >
+          <Code className="h-4 w-4" />
+          <span className="hidden lg:inline text-xs">Code</span>
         </Button>
       </div>
 
