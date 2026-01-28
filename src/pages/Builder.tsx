@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MessageSquare, Eye, Download } from 'lucide-react';
+import { MessageSquare, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,10 +9,11 @@ import { supabase } from '@/integrations/supabase/client';
 import TopBar, { DeviceType } from '@/components/builder/TopBar';
 import ChatInterface from '@/components/builder/ChatInterface';
 import PreviewPanel from '@/components/builder/PreviewPanel';
-import PageManager from '@/components/builder/PageManager';
+import DevModePanel from '@/components/builder/DevModePanel';
 import ExportDialog from '@/components/builder/ExportDialog';
 import { useCodeGeneration } from '@/hooks/useCodeGeneration';
 import { useAutoSave } from '@/hooks/useAutoSave';
+import { useProjectFiles } from '@/hooks/useProjectFiles';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -49,7 +50,7 @@ const Builder = () => {
   const [loading, setLoading] = useState(true);
   const [mobileView, setMobileView] = useState<'chat' | 'preview'>('chat');
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [currentPage, setCurrentPage] = useState<Page | null>(null);
+  const [showDevMode, setShowDevMode] = useState(false);
   
   // New state for device and refresh
   const [device, setDevice] = useState<DeviceType>('desktop');
@@ -57,6 +58,9 @@ const Builder = () => {
   
   // Code generation hook
   const { isGenerating, generateComponent, currentPreviewHtml, setCurrentPreviewHtml } = useCodeGeneration(projectId);
+  
+  // Project files hook for Dev Mode
+  const { files, isLoading: filesLoading } = useProjectFiles(projectId);
   
   // Auto-save hook
   const { isSaving, lastSavedText, save, markChanged } = useAutoSave(projectId);
@@ -220,11 +224,9 @@ const Builder = () => {
     }
   };
 
-  const handlePageSelect = (page: Page) => {
-    setCurrentPage(page);
-    // Could load page-specific content here
+  const handleToggleDevMode = () => {
+    setShowDevMode(!showDevMode);
   };
-
   const handlePreview = () => {
     if (project?.preview_url) {
       window.open(project.preview_url, '_blank');
@@ -294,6 +296,8 @@ const Builder = () => {
         onRefresh={handleRefresh}
         onFullscreen={handleFullscreen}
         isRefreshing={isRefreshing}
+        isDevMode={showDevMode}
+        onToggleDevMode={handleToggleDevMode}
       />
 
       {/* Desktop Layout: 40/60 Split */}
@@ -307,13 +311,6 @@ const Builder = () => {
             mobileView === 'chat' ? "flex w-full" : "hidden"
           )}
         >
-          {/* PageManager */}
-          <PageManager
-            projectId={projectId!}
-            currentPageId={currentPage?.id}
-            onPageSelect={handlePageSelect}
-          />
-          
           <ChatInterface
             projectId={projectId!}
             messages={messages}
@@ -332,13 +329,20 @@ const Builder = () => {
             mobileView === 'preview' ? "flex w-full" : "hidden"
           )}
         >
-          <PreviewPanel
-            previewUrl={project.preview_url || undefined}
-            previewHtml={currentPreviewHtml}
-            isLoading={isGenerating}
-            device={device}
-            onRefresh={handleRefresh}
-          />
+          {showDevMode ? (
+            <DevModePanel 
+              files={files} 
+              isLoading={filesLoading}
+            />
+          ) : (
+            <PreviewPanel
+              previewUrl={project.preview_url || undefined}
+              previewHtml={currentPreviewHtml}
+              isLoading={isGenerating}
+              device={device}
+              onRefresh={handleRefresh}
+            />
+          )}
         </motion.div>
       </div>
 
