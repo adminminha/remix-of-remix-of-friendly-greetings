@@ -15,6 +15,7 @@ import { useCodeGeneration } from '@/hooks/useCodeGeneration';
 import { useAutoSave } from '@/hooks/useAutoSave';
 import { useProjectFiles } from '@/hooks/useProjectFiles';
 import { cn } from '@/lib/utils';
+import { getBaseTemplateFiles } from '@/lib/templates/project-base-template';
 
 interface Message {
   id: string;
@@ -57,10 +58,26 @@ const Builder = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Code generation hook
-  const { isGenerating, generateComponent, currentPreviewHtml, setCurrentPreviewHtml } = useCodeGeneration(projectId);
+  const { isGenerating, generateComponent } = useCodeGeneration(projectId);
   
-  // Project files hook for Dev Mode
-  const { files, isLoading: filesLoading } = useProjectFiles(projectId);
+  // Project files hook (generated files live here)
+  const {
+    files: generatedFiles,
+    isLoading: filesLoading,
+    fetchFiles,
+    generateFullPreviewHtml,
+  } = useProjectFiles(projectId);
+
+  const baseTemplateFiles = getBaseTemplateFiles();
+  const mergedFiles = (() => {
+    // generated files should override base template with same path
+    const map = new Map<string, { file_path: string; content: string | null }>();
+    for (const f of baseTemplateFiles) map.set(f.file_path, { file_path: f.file_path, content: f.content });
+    for (const f of generatedFiles) map.set(f.file_path, { file_path: f.file_path, content: f.content });
+    return Array.from(map.values()).sort((a, b) => a.file_path.localeCompare(b.file_path));
+  })();
+
+  const previewHtml = generateFullPreviewHtml();
   
   // Auto-save hook
   const { isSaving, lastSavedText, save, markChanged } = useAutoSave(projectId);
@@ -143,8 +160,8 @@ const Builder = () => {
       let aiContent: string;
       let codeGenerated: string | undefined;
       
-      if (result.success && result.component) {
-        aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nPreview updated with your new component.`;
+       if (result.success && result.component) {
+         aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nফাইল: ${result.component.filePath}\n\nPreview updated with your new component.`;
         codeGenerated = result.component.code;
       } else {
         aiContent = result.error || "I couldn't generate the component. Please try again!";
@@ -255,6 +272,7 @@ const Builder = () => {
     setTimeout(() => {
       setIsRefreshing(false);
       fetchProject();
+      fetchFiles();
       toast({ title: "Refreshed", description: "Preview has been refreshed" });
     }, 1000);
   };
@@ -317,6 +335,10 @@ const Builder = () => {
             onSendMessage={handleSendMessage}
             isLoading={isGenerating}
             onUndo={handleUndo}
+            getFileContent={(path) => {
+              const f = mergedFiles.find((x) => x.file_path === path);
+              return f?.content ?? null;
+            }}
           />
         </motion.div>
 
@@ -331,13 +353,13 @@ const Builder = () => {
         >
           {showDevMode ? (
             <DevModePanel 
-              files={files} 
+              files={mergedFiles as any} 
               isLoading={filesLoading}
             />
           ) : (
             <PreviewPanel
               previewUrl={project.preview_url || undefined}
-              previewHtml={currentPreviewHtml}
+              previewHtml={previewHtml}
               isLoading={isGenerating}
               device={device}
               onRefresh={handleRefresh}
