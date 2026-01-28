@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { MessageSquare, Eye } from 'lucide-react';
+import { MessageSquare, Eye, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,7 +9,10 @@ import { supabase } from '@/integrations/supabase/client';
 import TopBar, { DeviceType } from '@/components/builder/TopBar';
 import ChatInterface from '@/components/builder/ChatInterface';
 import PreviewPanel from '@/components/builder/PreviewPanel';
+import PageManager from '@/components/builder/PageManager';
+import ExportDialog from '@/components/builder/ExportDialog';
 import { useCodeGeneration } from '@/hooks/useCodeGeneration';
+import { useAutoSave } from '@/hooks/useAutoSave';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -27,6 +30,14 @@ interface Project {
   preview_url: string | null;
 }
 
+interface Page {
+  id: string;
+  title: string;
+  slug: string;
+  is_home: boolean;
+  component_path: string | null;
+}
+
 const Builder = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -36,9 +47,9 @@ const Builder = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [mobileView, setMobileView] = useState<'chat' | 'preview'>('chat');
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [currentPage, setCurrentPage] = useState<Page | null>(null);
   
   // New state for device and refresh
   const [device, setDevice] = useState<DeviceType>('desktop');
@@ -46,6 +57,9 @@ const Builder = () => {
   
   // Code generation hook
   const { isGenerating, generateComponent, currentPreviewHtml, setCurrentPreviewHtml } = useCodeGeneration(projectId);
+  
+  // Auto-save hook
+  const { isSaving, lastSavedText, save, markChanged } = useAutoSave(projectId);
 
   useEffect(() => {
     if (projectId) {
@@ -140,6 +154,9 @@ const Builder = () => {
         codeGenerated,
       };
       setMessages((prev) => [...prev, aiResponse]);
+      
+      // Mark as changed for auto-save
+      markChanged();
 
       // Save AI response
       await supabase.from('chat_messages').insert({
@@ -197,11 +214,15 @@ const Builder = () => {
   };
 
   const handleSave = async () => {
-    setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    setLastSaved(new Date());
-    toast({ title: "Saved!", description: "All changes have been saved" });
+    const success = await save();
+    if (success) {
+      toast({ title: "Saved!", description: "All changes have been saved" });
+    }
+  };
+
+  const handlePageSelect = (page: Page) => {
+    setCurrentPage(page);
+    // Could load page-specific content here
   };
 
   const handlePreview = () => {
@@ -220,6 +241,10 @@ const Builder = () => {
       title: "Deploy",
       description: "Deployment feature coming soon!",
     });
+  };
+
+  const handleExport = () => {
+    setShowExportDialog(true);
   };
 
   const handleRefresh = () => {
@@ -261,8 +286,9 @@ const Builder = () => {
         onSave={handleSave}
         onPreview={handlePreview}
         onDeploy={handleDeploy}
+        onExport={handleExport}
         isSaving={isSaving}
-        lastSaved={lastSaved}
+        lastSavedText={lastSavedText}
         device={device}
         onDeviceChange={setDevice}
         onRefresh={handleRefresh}
@@ -281,6 +307,13 @@ const Builder = () => {
             mobileView === 'chat' ? "flex w-full" : "hidden"
           )}
         >
+          {/* PageManager */}
+          <PageManager
+            projectId={projectId!}
+            currentPageId={currentPage?.id}
+            onPageSelect={handlePageSelect}
+          />
+          
           <ChatInterface
             projectId={projectId!}
             messages={messages}
@@ -338,6 +371,14 @@ const Builder = () => {
           </Button>
         </div>
       </div>
+
+      {/* Export Dialog */}
+      <ExportDialog
+        open={showExportDialog}
+        onOpenChange={setShowExportDialog}
+        projectId={projectId!}
+        projectName={project.name}
+      />
     </div>
   );
 };

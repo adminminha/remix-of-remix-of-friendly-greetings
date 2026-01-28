@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Bird, Save, ExternalLink, Rocket, Settings, ChevronDown, Check, Loader2,
-  Monitor, Tablet, Smartphone, RefreshCw, Maximize2
+  Monitor, Tablet, Smartphone, RefreshCw, Maximize2, Download
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,8 +24,9 @@ interface TopBarProps {
   onSave?: () => void;
   onPreview?: () => void;
   onDeploy?: () => void;
+  onExport?: () => void;
   isSaving?: boolean;
-  lastSaved?: Date | null;
+  lastSavedText?: string | null;
   // New props for device switching
   device?: DeviceType;
   onDeviceChange?: (device: DeviceType) => void;
@@ -40,8 +41,9 @@ const TopBar = ({
   onSave,
   onPreview,
   onDeploy,
+  onExport,
   isSaving = false,
-  lastSaved,
+  lastSavedText,
   device = 'desktop',
   onDeviceChange,
   onRefresh,
@@ -100,10 +102,10 @@ const TopBar = ({
               <Loader2 className="h-3 w-3 animate-spin" />
               <span>Saving...</span>
             </>
-          ) : lastSaved ? (
+          ) : lastSavedText ? (
             <>
               <Check className="h-3 w-3 text-primary" />
-              <span>Saved {lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Saved {lastSavedText}</span>
             </>
           ) : null}
         </div>
@@ -189,7 +191,10 @@ const TopBar = ({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem>Project Settings</DropdownMenuItem>
-            <DropdownMenuItem>Export Code</DropdownMenuItem>
+            <DropdownMenuItem onClick={onExport}>
+              <Download className="h-4 w-4 mr-2" />
+              Export Code
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem>Help & Documentation</DropdownMenuItem>
           </DropdownMenuContent>
