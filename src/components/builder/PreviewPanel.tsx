@@ -1,13 +1,17 @@
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Monitor } from 'lucide-react';
+import { Monitor, RefreshCw, Loader2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { DeviceType } from './TopBar';
 
 interface PreviewPanelProps {
   previewUrl?: string;
+  previewHtml?: string;
   isLoading?: boolean;
   device?: DeviceType;
+  onRefresh?: () => void;
 }
 
 const deviceSizes = {
@@ -16,7 +20,39 @@ const deviceSizes = {
   mobile: { width: '375px', maxWidth: '375px' },
 };
 
-const PreviewPanel = ({ previewUrl, isLoading = false, device = 'desktop' }: PreviewPanelProps) => {
+const PreviewPanel = ({ 
+  previewUrl, 
+  previewHtml,
+  isLoading = false, 
+  device = 'desktop',
+  onRefresh 
+}: PreviewPanelProps) => {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeKey, setIframeKey] = useState(0);
+
+  // Create blob URL for HTML content
+  const blobUrl = useMemo(() => {
+    if (!previewHtml) return null;
+    const blob = new Blob([previewHtml], { type: 'text/html' });
+    return URL.createObjectURL(blob);
+  }, [previewHtml]);
+
+  // Cleanup blob URL on unmount or change
+  useEffect(() => {
+    return () => {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+      }
+    };
+  }, [blobUrl]);
+
+  const handleRefresh = () => {
+    setIframeKey(prev => prev + 1);
+    onRefresh?.();
+  };
+
+  const hasContent = previewUrl || previewHtml;
+
   return (
     <div className="flex flex-col h-full bg-muted/30">
       {/* Preview Frame */}
@@ -24,7 +60,7 @@ const PreviewPanel = ({ previewUrl, isLoading = false, device = 'desktop' }: Pre
         <motion.div
           layout
           className={cn(
-            "bg-background border border-border/50 rounded-lg shadow-lg overflow-hidden transition-all duration-300",
+            "bg-background border border-border/50 rounded-lg shadow-lg overflow-hidden transition-all duration-300 relative",
             device === 'mobile' && "rounded-[2rem]"
           )}
           style={{
@@ -35,6 +71,12 @@ const PreviewPanel = ({ previewUrl, isLoading = false, device = 'desktop' }: Pre
         >
           {isLoading ? (
             <div className="w-full h-full p-4 space-y-4">
+              <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-10">
+                <div className="text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-2" />
+                  <p className="text-sm text-muted-foreground">Generating component...</p>
+                </div>
+              </div>
               <Skeleton className="h-16 w-full" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-3/4" />
@@ -47,13 +89,26 @@ const PreviewPanel = ({ previewUrl, isLoading = false, device = 'desktop' }: Pre
                 <Skeleton className="h-24" />
               </div>
             </div>
-          ) : previewUrl ? (
-            <iframe
-              src={previewUrl}
-              className="w-full h-full border-0"
-              title="Preview"
-              sandbox="allow-scripts allow-same-origin"
-            />
+          ) : hasContent ? (
+            <>
+              <iframe
+                key={iframeKey}
+                ref={iframeRef}
+                src={blobUrl || previewUrl}
+                className="w-full h-full border-0"
+                title="Preview"
+                sandbox="allow-scripts allow-same-origin"
+              />
+              {/* Refresh button overlay */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-8 w-8 bg-background/80 hover:bg-background shadow-sm"
+                onClick={handleRefresh}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
+            </>
           ) : (
             <div className="w-full h-full flex items-center justify-center text-muted-foreground">
               <div className="text-center p-8">

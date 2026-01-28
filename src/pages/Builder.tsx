@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { MessageSquare, Eye } from 'lucide-react';
@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import TopBar, { DeviceType } from '@/components/builder/TopBar';
 import ChatInterface from '@/components/builder/ChatInterface';
 import PreviewPanel from '@/components/builder/PreviewPanel';
+import { useCodeGeneration } from '@/hooks/useCodeGeneration';
 import { cn } from '@/lib/utils';
 
 interface Message {
@@ -35,7 +36,6 @@ const Builder = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [mobileView, setMobileView] = useState<'chat' | 'preview'>('chat');
@@ -43,6 +43,9 @@ const Builder = () => {
   // New state for device and refresh
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [isRefreshing, setIsRefreshing] = useState(false);
+  
+  // Code generation hook
+  const { isGenerating, generateComponent, currentPreviewHtml, setCurrentPreviewHtml } = useCodeGeneration(projectId);
 
   useEffect(() => {
     if (projectId) {
@@ -115,31 +118,26 @@ const Builder = () => {
       content,
     });
 
-    // Call AI Chat Edge Function
-    setIsGenerating(true);
-    
     try {
-      const { data, error } = await supabase.functions.invoke('ai-chat', {
-        body: {
-          messages: [...messages, userMessage].map(m => ({
-            role: m.role,
-            content: m.content,
-          })),
-          projectContext: {
-            projectName: project?.name,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      const aiContent = data.message || data.error || "I couldn't generate a response.";
+      // Generate component using AI
+      const result = await generateComponent(content);
+      
+      let aiContent: string;
+      let codeGenerated: string | undefined;
+      
+      if (result.success && result.component) {
+        aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nPreview updated with your new component.`;
+        codeGenerated = result.component.code;
+      } else {
+        aiContent = result.error || "I couldn't generate the component. Please try again!";
+      }
       
       const aiResponse: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: aiContent,
         timestamp: new Date(),
+        codeGenerated,
       };
       setMessages((prev) => [...prev, aiResponse]);
 
@@ -150,7 +148,7 @@ const Builder = () => {
         content: aiContent,
       });
     } catch (error: any) {
-      console.error('AI Chat error:', error);
+      console.error('Generation error:', error);
       const errorMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -158,8 +156,6 @@ const Builder = () => {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsGenerating(false);
     }
   };
 
@@ -305,8 +301,10 @@ const Builder = () => {
         >
           <PreviewPanel
             previewUrl={project.preview_url || undefined}
+            previewHtml={currentPreviewHtml}
             isLoading={isGenerating}
             device={device}
+            onRefresh={handleRefresh}
           />
         </motion.div>
       </div>
