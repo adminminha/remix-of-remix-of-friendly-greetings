@@ -355,6 +355,7 @@ const Builder = () => {
             <DevModePanel 
               files={mergedFiles as any} 
               isLoading={filesLoading}
+              projectName={project.name}
             />
           ) : (
             <PreviewPanel
