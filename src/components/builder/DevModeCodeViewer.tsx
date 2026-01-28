@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, ExternalLink, FileCode } from "lucide-react";
+import { Check, Copy, FileCode } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -108,10 +108,6 @@ export function DevModeCodeViewer({ fileName, content }: DevModeCodeViewerProps)
               <Copy className="h-3.5 w-3.5" />
             )}
             {copied ? "Copied!" : "Copy"}
-          </Button>
-          <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs">
-            <ExternalLink className="h-3.5 w-3.5" />
-            Open
           </Button>
         </div>
       </div>
