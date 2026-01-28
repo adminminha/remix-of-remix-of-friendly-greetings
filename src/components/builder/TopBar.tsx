@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bird, Save, ExternalLink, Rocket, Settings, ChevronDown, Check, Loader2, Monitor, Tablet, Smartphone, RefreshCw, Maximize2, Download, Code } from 'lucide-react';
+import { Bird, Save, ExternalLink, Rocket, Settings, ChevronDown, Check, Loader2, Monitor, Tablet, Smartphone, RefreshCw, Download, Code } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
@@ -107,9 +107,6 @@ const TopBar = ({
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onRefresh} disabled={isRefreshing}>
           <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onFullscreen}>
-          <Maximize2 className="h-4 w-4" />
-        </Button>
 
         <div className="h-6 w-px bg-border" />
 
@@ -132,7 +129,7 @@ const TopBar = ({
           <span className="hidden sm:inline">Preview</span>
         </Button>
 
-        <Button size="sm" onClick={onDeploy} className="liquid-button gap-2">
+        <Button size="sm" onClick={onDeploy} className="gap-2 bg-primary hover:bg-primary/90">
           <Rocket className="h-4 w-4" />
           <span className="hidden sm:inline">Deploy</span>
         </Button>
