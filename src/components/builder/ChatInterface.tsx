@@ -21,6 +21,8 @@ interface ChatInterfaceProps {
   onSendMessage: (message: string) => void;
   isLoading?: boolean;
   onUndo?: (messageId: string) => void;
+  // Optional resolver to fetch persisted code after refresh (from Dev Mode file list)
+  getFileContent?: (filePath: string) => string | null;
 }
 const suggestions = [{
   icon: Sparkles,
@@ -44,7 +46,8 @@ const ChatInterface = ({
   messages,
   onSendMessage,
   isLoading = false,
-  onUndo
+  onUndo,
+  getFileContent,
 }: ChatInterfaceProps) => {
   const [input, setInput] = useState('');
   const [viewCodeDialog, setViewCodeDialog] = useState<{
@@ -77,22 +80,13 @@ const ChatInterface = ({
     onSendMessage(prompt);
   };
   const handleViewCode = (message: Message) => {
-    // Show the generated code - for now showing the content as code
-    const code = message.codeGenerated || `// Code generated for this response
-// This is a placeholder - actual code generation will be implemented
-
-import React from 'react';
-
-const GeneratedComponent = () => {
-  return (
-    <div>
-      {/* Generated content */}
-      ${message.content.substring(0, 200)}...
-    </div>
-  );
-};
-
-export default GeneratedComponent;`;
+    // Prefer stored/generated code; after refresh codeGenerated won't exist,
+    // so try to resolve from a file path included in the assistant message.
+    const pathMatch = message.content.match(/(src\/[^\s]+\.(?:tsx|ts|jsx|js|css|json|md|html))/);
+    const resolved = pathMatch?.[1] ? getFileContent?.(pathMatch[1]) : null;
+    const code = message.codeGenerated || resolved || `// Code not available for this message.
+// Tip: generate again, or open Dev Mode and select a file.
+`;
     setViewCodeDialog({
       open: true,
       code
