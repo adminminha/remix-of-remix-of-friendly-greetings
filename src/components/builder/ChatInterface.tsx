@@ -47,7 +47,7 @@ const ChatInterface = ({
   onSendMessage,
   isLoading = false,
   onUndo,
-  getFileContent
+  getFileContent,
 }: ChatInterfaceProps) => {
   const [input, setInput] = useState('');
   const [viewCodeDialog, setViewCodeDialog] = useState<{
@@ -217,7 +217,12 @@ const ChatInterface = ({
         </form>
         
         {/* Quick suggestions when messages exist */}
-        {messages.length > 0}
+        {messages.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">
+            {suggestions.slice(0, 2).map((suggestion, i) => <Badge key={i} variant="secondary" className="cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleSuggestionClick(suggestion.prompt)}>
+                <suggestion.icon className="h-3 w-3 mr-1" />
+                {suggestion.text}
+              </Badge>)}
+          </div>}
       </div>
 
       {/* View Code Dialog */}
