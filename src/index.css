@@ -276,6 +276,21 @@
   }
 }
 
+/* Code viewer styles */
+.shiki-container {
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.shiki-container pre {
+  margin: 0;
+  background: transparent !important;
+}
+
+.shiki-container code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
