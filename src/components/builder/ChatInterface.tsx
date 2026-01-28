@@ -150,7 +150,12 @@ const ChatInterface = ({
                           Undo
                         </Button>
                       </div>}
-                    
+                    <span className="text-[10px] text-muted-foreground">
+                      {message.timestamp.toLocaleTimeString([], {
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+                    </span>
                   </div>
                 </motion.div>)}
             </AnimatePresence>}
