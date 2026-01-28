@@ -47,7 +47,7 @@ const ChatInterface = ({
   onSendMessage,
   isLoading = false,
   onUndo,
-  getFileContent,
+  getFileContent
 }: ChatInterfaceProps) => {
   const [input, setInput] = useState('');
   const [viewCodeDialog, setViewCodeDialog] = useState<{
@@ -136,7 +136,7 @@ const ChatInterface = ({
                   </Avatar>
                   <div className={cn('flex flex-col gap-1 max-w-[80%]', message.role === 'user' ? 'items-end' : 'items-start')}>
                     <div className={cn('rounded-2xl px-4 py-2.5', message.role === 'user' ? 'bg-primary text-primary-foreground rounded-tr-md' : 'bg-muted rounded-tl-md')}>
-                      {message.role === 'assistant' ? <div className="prose prose-sm dark:prose-invert max-w-none">
+                      {message.role === 'assistant' ? <div className="prose prose-sm dark:prose-invert max-w-none px-0">
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div> : <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
                     </div>
@@ -150,12 +150,7 @@ const ChatInterface = ({
                           Undo
                         </Button>
                       </div>}
-                    <span className="text-[10px] text-muted-foreground">
-                      {message.timestamp.toLocaleTimeString([], {
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
-                    </span>
+                    
                   </div>
                 </motion.div>)}
             </AnimatePresence>}
@@ -217,12 +212,7 @@ const ChatInterface = ({
         </form>
         
         {/* Quick suggestions when messages exist */}
-        {messages.length > 0 && <div className="flex flex-wrap gap-1.5 mt-3">
-            {suggestions.slice(0, 2).map((suggestion, i) => <Badge key={i} variant="secondary" className="cursor-pointer hover:bg-secondary/80 transition-colors" onClick={() => handleSuggestionClick(suggestion.prompt)}>
-                <suggestion.icon className="h-3 w-3 mr-1" />
-                {suggestion.text}
-              </Badge>)}
-          </div>}
+        {messages.length > 0}
       </div>
 
       {/* View Code Dialog */}
