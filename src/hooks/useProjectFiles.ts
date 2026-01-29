@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { buildFullPreviewHtml } from '@/lib/preview-html-builder';
+import { buildMinimalFileSet, getLoadingStats } from '@/lib/preview-builder';
 
 export interface ProjectFile {
   id: string;
@@ -16,13 +18,12 @@ export interface GeneratedComponent {
   code: string;
   componentName: string;
   filePath: string;
-  previewHtml: string;
+  previewHtml?: string;
 }
 
 export function useProjectFiles(projectId: string | undefined) {
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPreviewHtml, setCurrentPreviewHtml] = useState<string>('');
   const { toast } = useToast();
 
   // Fetch all files for a project
@@ -102,9 +103,6 @@ export function useProjectFiles(projectId: string | undefined) {
 
       // Update local state
       await fetchFiles();
-      
-      // Update preview HTML
-      setCurrentPreviewHtml(component.previewHtml);
 
       return result;
     } catch (error: any) {
@@ -167,47 +165,37 @@ export function useProjectFiles(projectId: string | undefined) {
     }
   }, [fetchFiles, toast]);
 
-  // Generate combined preview HTML from all components
+  // Generate smart preview HTML using new builder
   const generateFullPreviewHtml = useCallback((): string => {
     if (files.length === 0) return '';
 
-    // Combine all component code into a single preview
-    const componentContents = files
+    // Convert to preview file format
+    const previewFiles = files
       .filter(f => f.content && f.file_type === 'tsx')
-      .map(f => {
-        // Extract JSX from component
-        const returnMatch = f.content?.match(/return\s*\(\s*([\s\S]*?)\s*\);?\s*\}[\s\S]*?(?:export|$)/);
-        return returnMatch ? returnMatch[1] : '';
-      })
-      .join('\n');
+      .map(f => ({
+        file_path: f.file_path,
+        content: f.content!,
+        file_type: f.file_type || 'tsx',
+      }));
 
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Preview</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    body { 
-      margin: 0; 
-      font-family: system-ui, -apple-system, sans-serif; 
-    }
-  </style>
-</head>
-<body>
-  ${componentContents
-    .replace(/className=/g, 'class=')
-    .replace(/\{[^}]*\}/g, '')}
-</body>
-</html>`;
+    // Build minimal file set (only loads used components)
+    const minimalFiles = buildMinimalFileSet(previewFiles);
+    
+    // Log stats for debugging
+    const stats = getLoadingStats(previewFiles);
+    console.log('📊 Preview Stats:', stats);
+
+    // Build the HTML preview
+    return buildFullPreviewHtml(previewFiles);
   }, [files]);
+
+  // Memoize the preview HTML to avoid unnecessary regeneration
+  const previewHtml = useMemo(() => generateFullPreviewHtml(), [generateFullPreviewHtml]);
 
   return {
     files,
     isLoading,
-    currentPreviewHtml,
-    setCurrentPreviewHtml,
+    previewHtml,
     fetchFiles,
     saveComponent,
     deleteFile,

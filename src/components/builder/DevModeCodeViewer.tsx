@@ -11,6 +11,7 @@ import ShikiCodeViewer from "./ShikiCodeViewer";
 interface DevModeCodeViewerProps {
   fileName: string | null;
   content: string | null;
+  highlightLine?: number;
 }
 
 function getFileType(filePath: string): string {
@@ -51,7 +52,7 @@ function getLanguageFromPath(filePath: string): string {
   }
 }
 
-export function DevModeCodeViewer({ fileName, content }: DevModeCodeViewerProps) {
+export function DevModeCodeViewer({ fileName, content, highlightLine }: DevModeCodeViewerProps) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
@@ -118,6 +119,7 @@ export function DevModeCodeViewer({ fileName, content }: DevModeCodeViewerProps)
           code={content} 
           lang={language} 
           showLineNumbers={true}
+          highlightLine={highlightLine}
         />
       </ScrollArea>
     </div>
