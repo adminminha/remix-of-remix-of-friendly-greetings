@@ -1,22 +1,37 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { GeneratedComponent, useProjectFiles } from './useProjectFiles';
+
+export interface GeneratedComponent {
+  code: string;
+  componentName: string;
+  filePath: string;
+  previewHtml?: string;
+}
 
 export interface GenerationResult {
   success: boolean;
-  type?: 'component' | 'conversation';
+  type?: 'component' | 'website' | 'conversation';
   component?: GeneratedComponent;
+  components?: Array<{
+    name: string;
+    path: string;
+    code: string;
+  }>;
+  homeUpdate?: {
+    path: string;
+    code: string;
+  };
   description?: string;
-  response?: string; // For conversation type
+  response?: string;
   error?: string;
 }
 
 export function useCodeGeneration(projectId: string | undefined) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationProgress, setGenerationProgress] = useState<string>('');
   const [lastGeneration, setLastGeneration] = useState<GenerationResult | null>(null);
   const { toast } = useToast();
-  const { saveComponent, files, previewHtml, fetchFiles } = useProjectFiles(projectId);
 
   const generateComponent = useCallback(async (
     prompt: string,
@@ -27,31 +42,26 @@ export function useCodeGeneration(projectId: string | undefined) {
     }
 
     setIsGenerating(true);
+    setGenerationProgress('🔄 Analyzing request...');
     
     try {
-      // Get existing components for context
-      const existingComponents = files
-        .filter(f => f.file_type === 'tsx')
-        .map(f => f.file_path.split('/').pop()?.replace('.tsx', '') || '');
-
       // Call the generate-component edge function
+      setGenerationProgress('⚡ Generating components...');
+      
       const { data, error } = await supabase.functions.invoke('generate-component', {
         body: {
           prompt,
           projectId,
           currentPage,
-          existingComponents,
         },
       });
 
       if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Generation failed');
 
-      if (!data.success) {
-        throw new Error(data.error || 'Generation failed');
-      }
-
-      // Handle conversation type response
+      // Handle conversation type
       if (data.type === 'conversation') {
+        setGenerationProgress('');
         const result: GenerationResult = {
           success: true,
           type: 'conversation',
@@ -61,47 +71,99 @@ export function useCodeGeneration(projectId: string | undefined) {
         return result;
       }
 
-      // Handle component generation
-      const component = data.component as GeneratedComponent;
-      const result: GenerationResult = {
-        success: true,
-        type: 'component',
-        component,
-        description: data.description,
-      };
+      // Handle component/website generation
+      if (data.type === 'website' || data.type === 'component') {
+        setGenerationProgress('💾 Saving components to database...');
+        
+        // Save all generated components to database
+        const components = data.components || [];
+        const savePromises: Promise<any>[] = [];
 
-      // Save the generated component to the database
-      await saveComponent(component);
-      
-      // Refresh files to get updated preview
-      await fetchFiles();
+        for (const comp of components) {
+          // First check if file exists
+          const { data: existingFile } = await supabase
+            .from('files')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('file_path', comp.path)
+            .maybeSingle();
 
-      setLastGeneration(result);
-      
-      toast({
-        title: '✨ Component Generated!',
-        description: data.description || `Created ${component.componentName}`,
-      });
+          if (existingFile) {
+            // Update existing
+            await supabase.from('files').update({
+              content: comp.code,
+              updated_at: new Date().toISOString(),
+            }).eq('id', existingFile.id);
+          } else {
+            // Insert new
+            await supabase.from('files').insert({
+              project_id: projectId,
+              file_path: comp.path,
+              content: comp.code,
+              file_type: 'component',
+            });
+          }
+        }
 
-      return result;
+        // Also save/update Home.tsx
+        if (data.homeUpdate) {
+          const { data: existingHome } = await supabase
+            .from('files')
+            .select('id')
+            .eq('project_id', projectId)
+            .eq('file_path', data.homeUpdate.path)
+            .maybeSingle();
+
+          if (existingHome) {
+            await supabase.from('files').update({
+              content: data.homeUpdate.code,
+              updated_at: new Date().toISOString(),
+            }).eq('id', existingHome.id);
+          } else {
+            await supabase.from('files').insert({
+              project_id: projectId,
+              file_path: data.homeUpdate.path,
+              content: data.homeUpdate.code,
+              file_type: 'page',
+            });
+          }
+        }
+        
+        setGenerationProgress('');
+
+        // Show success toast
+        toast({
+          title: "✅ Website Generated!",
+          description: `Created ${components.length} components successfully.`,
+        });
+
+        const result: GenerationResult = {
+          success: true,
+          type: data.type,
+          component: data.component,
+          components: data.components,
+          homeUpdate: data.homeUpdate,
+          description: data.description,
+        };
+
+        setLastGeneration(result);
+        return result;
+      }
+
+      throw new Error('Invalid response type');
+
     } catch (error: any) {
-      console.error('Code generation error:', error);
+      console.error('Generation error:', error);
+      setGenerationProgress('');
       
-      const errorResult: GenerationResult = {
-        success: false,
-        error: error.message || 'Failed to generate component',
-      };
-
-      setLastGeneration(errorResult);
-
-      // Handle specific error cases
-      if (error.message?.includes('Rate limit')) {
+      // Handle specific errors
+      if (error.message?.includes('Rate limit') || error.message?.includes('429')) {
         toast({
           variant: 'destructive',
           title: 'Rate Limited',
           description: 'Too many requests. Please wait a moment and try again.',
         });
-      } else if (error.message?.includes('credits')) {
+      } else if (error.message?.includes('402') || error.message?.includes('credits')) {
         toast({
           variant: 'destructive',
           title: 'Credits Exhausted',
@@ -115,16 +177,23 @@ export function useCodeGeneration(projectId: string | undefined) {
         });
       }
 
+      const errorResult: GenerationResult = {
+        success: false,
+        error: error.message || 'Unknown error',
+      };
+      
+      setLastGeneration(errorResult);
       return errorResult;
     } finally {
       setIsGenerating(false);
+      setGenerationProgress('');
     }
-  }, [projectId, files, saveComponent, fetchFiles, toast]);
+  }, [projectId, toast]);
 
   return {
     isGenerating,
+    generationProgress,
     lastGeneration,
     generateComponent,
-    previewHtml,
   };
 }

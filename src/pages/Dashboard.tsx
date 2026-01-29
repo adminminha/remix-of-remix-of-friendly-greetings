@@ -34,6 +34,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { getBaseTemplateFiles } from '@/lib/templates/project-base-template';
 
 interface Project {
   id: string;
@@ -43,6 +44,101 @@ interface Project {
   preview_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+// Initialize project with base template files
+async function initializeProject(projectId: string): Promise<boolean> {
+  console.log('Initializing project:', projectId);
+  
+  try {
+    // Get all base template files
+    const templateFiles = getBaseTemplateFiles();
+    console.log(`Copying ${templateFiles.length} template files...`);
+    
+    // Prepare bulk insert
+    const fileInserts = templateFiles.map(file => ({
+      project_id: projectId,
+      file_path: file.file_path,
+      content: file.content,
+      file_type: file.file_type
+    }));
+    
+    // Insert all template files at once
+    const { error: filesError } = await supabase
+      .from('files')
+      .insert(fileInserts);
+    
+    if (filesError) {
+      console.error('Failed to insert template files:', filesError);
+      throw filesError;
+    }
+    
+    // Create initial Home.tsx with welcome message
+    const homeContent = `import React from 'react';
+
+export default function Home() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center">
+      <div className="text-center max-w-2xl mx-auto px-4">
+        <div className="w-20 h-20 mx-auto bg-gradient-to-br from-purple-600 to-blue-600 rounded-2xl flex items-center justify-center mb-6 shadow-lg">
+          <span className="text-4xl">🦜</span>
+        </div>
+        <h1 className="text-4xl font-bold text-gray-900 mb-4">
+          Welcome to Your New Website
+        </h1>
+        <p className="text-xl text-gray-600 mb-8">
+          Start building by chatting with AI! 🚀
+        </p>
+        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg">
+          <p className="text-gray-700 mb-4 font-medium">Try saying:</p>
+          <div className="space-y-2 text-left">
+            <p className="text-purple-600">"Create an e-commerce landing page"</p>
+            <p className="text-blue-600">"Make a portfolio website"</p>
+            <p className="text-indigo-600">"Build a SaaS landing page with pricing"</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}`;
+    
+    const { error: homeError } = await supabase
+      .from('files')
+      .insert({
+        project_id: projectId,
+        file_path: 'src/pages/Home.tsx',
+        content: homeContent,
+        file_type: 'page'
+      });
+    
+    if (homeError) {
+      console.error('Failed to create Home.tsx:', homeError);
+      throw homeError;
+    }
+    
+    // Create initial page entry
+    const { error: pageError } = await supabase
+      .from('pages')
+      .insert({
+        project_id: projectId,
+        slug: '/',
+        title: 'Home',
+        is_home: true,
+        component_path: 'src/pages/Home.tsx'
+      });
+    
+    if (pageError) {
+      console.error('Failed to create page entry:', pageError);
+      // Don't throw - page entry is optional
+    }
+    
+    console.log('✓ Project initialized successfully!');
+    return true;
+    
+  } catch (error) {
+    console.error('Project initialization failed:', error);
+    throw error;
+  }
 }
 
 const Dashboard = () => {
@@ -119,6 +215,7 @@ const Dashboard = () => {
     setCreating(true);
 
     try {
+      // 1. Create project in database
       const { data, error } = await supabase
         .from('projects')
         .insert({
@@ -131,9 +228,12 @@ const Dashboard = () => {
 
       if (error) throw error;
 
+      // 2. Initialize project with template files
+      await initializeProject(data.id);
+
       toast({
         title: "Project Created! 🎉",
-        description: `${newProjectName} is ready to build`,
+        description: `${newProjectName} is ready with template files`,
       });
 
       setCreateDialogOpen(false);
