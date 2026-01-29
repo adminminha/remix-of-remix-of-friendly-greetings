@@ -14,7 +14,7 @@ export function useCodeGeneration(projectId: string | undefined) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [lastGeneration, setLastGeneration] = useState<GenerationResult | null>(null);
   const { toast } = useToast();
-  const { saveComponent, files, currentPreviewHtml, setCurrentPreviewHtml } = useProjectFiles(projectId);
+  const { saveComponent, files, previewHtml, fetchFiles } = useProjectFiles(projectId);
 
   const generateComponent = useCallback(async (
     prompt: string,
@@ -57,9 +57,9 @@ export function useCodeGeneration(projectId: string | undefined) {
 
       // Save the generated component to the database
       await saveComponent(component);
-
-      // Update preview HTML
-      setCurrentPreviewHtml(component.previewHtml);
+      
+      // Refresh files to get updated preview
+      await fetchFiles();
 
       setLastGeneration(result);
       
@@ -104,13 +104,12 @@ export function useCodeGeneration(projectId: string | undefined) {
     } finally {
       setIsGenerating(false);
     }
-  }, [projectId, files, saveComponent, setCurrentPreviewHtml, toast]);
+  }, [projectId, files, saveComponent, fetchFiles, toast]);
 
   return {
     isGenerating,
     lastGeneration,
     generateComponent,
-    currentPreviewHtml,
-    setCurrentPreviewHtml,
+    previewHtml,
   };
 }

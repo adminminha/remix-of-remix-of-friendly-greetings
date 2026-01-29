@@ -8,6 +8,7 @@ interface ShikiCodeViewerProps {
   code: string;
   lang?: string;
   showLineNumbers?: boolean;
+  highlightLine?: number;
   className?: string;
 }
 
@@ -15,6 +16,7 @@ export function ShikiCodeViewer({
   code,
   lang = "tsx",
   showLineNumbers = true,
+  highlightLine,
   className,
 }: ShikiCodeViewerProps) {
   const [html, setHtml] = useState<string>("");
@@ -86,7 +88,11 @@ export function ShikiCodeViewer({
     
     const lines = code.split("\n");
     const lineNumbersHtml = lines
-      .map((_, i) => `<span class="line-number">${i + 1}</span>`)
+      .map((_, i) => {
+        const lineNum = i + 1;
+        const isHighlighted = highlightLine === lineNum;
+        return `<span class="line-number${isHighlighted ? ' highlighted' : ''}">${lineNum}</span>`;
+      })
       .join("\n");
 
     return `<div class="shiki-wrapper with-line-numbers">
@@ -117,6 +123,11 @@ export function ShikiCodeViewer({
         }
         .shiki-wrapper.with-line-numbers .line-number {
           padding: 0 0.5rem;
+        }
+        .shiki-wrapper.with-line-numbers .line-number.highlighted {
+          background: hsl(var(--primary) / 0.2);
+          color: hsl(var(--primary));
+          font-weight: 600;
         }
         .shiki-wrapper .code-content {
           flex: 1;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/resizable";
 import DevModeFileTree from "./DevModeFileTree";
 import DevModeCodeViewer from "./DevModeCodeViewer";
+import DevModeSearchBar from "./DevModeSearchBar";
 import { ProjectFile } from "@/hooks/useProjectFiles";
 
 interface DevModePanelProps {
@@ -22,6 +23,7 @@ const DevModePanel = ({
   projectName = "Project",
 }: DevModePanelProps) => {
   const [selectedFile, setSelectedFile] = useState<string | undefined>(undefined);
+  const [highlightLine, setHighlightLine] = useState<number | undefined>(undefined);
 
   // Auto-select first file if none selected
   useEffect(() => {
@@ -36,6 +38,16 @@ const DevModePanel = ({
       setSelectedFile(mainFile?.file_path || files[0].file_path);
     }
   }, [files, selectedFile]);
+
+  // Handle file select with optional line number
+  const handleFileSelect = useCallback((path: string, line?: number) => {
+    setSelectedFile(path);
+    setHighlightLine(line);
+    // Clear highlight after a delay
+    if (line) {
+      setTimeout(() => setHighlightLine(undefined), 3000);
+    }
+  }, []);
 
   // Find content for selected file
   const selectedFileContent =
@@ -56,14 +68,25 @@ const DevModePanel = ({
     <ResizablePanelGroup direction="horizontal" className="h-full">
       {/* File Tree - 25% */}
       <ResizablePanel defaultSize={25} minSize={15} maxSize={40}>
-        <div className="h-full border-r border-border bg-card">
-          <DevModeFileTree
-            files={files}
-            selectedFile={selectedFile}
-            onFileSelect={setSelectedFile}
-            projectName={projectName}
-            projectVersion="1.0.0"
-          />
+        <div className="h-full border-r border-border bg-card flex flex-col">
+          {/* Search Bar */}
+          <div className="p-2 border-b border-border">
+            <DevModeSearchBar
+              files={files}
+              onFileSelect={handleFileSelect}
+            />
+          </div>
+          
+          {/* File Tree */}
+          <div className="flex-1 overflow-hidden">
+            <DevModeFileTree
+              files={files}
+              selectedFile={selectedFile}
+              onFileSelect={handleFileSelect}
+              projectName={projectName}
+              projectVersion="1.0.0"
+            />
+          </div>
         </div>
       </ResizablePanel>
 
@@ -75,6 +98,7 @@ const DevModePanel = ({
           <DevModeCodeViewer
             fileName={selectedFile || null}
             content={selectedFileContent}
+            highlightLine={highlightLine}
           />
         </div>
       </ResizablePanel>
