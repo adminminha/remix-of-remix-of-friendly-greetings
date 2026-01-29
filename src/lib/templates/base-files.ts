@@ -304,6 +304,22 @@ export const BASE_COMPONENTS_JSON = `{
   }
 }`;
 
+// Public folder files
+export const BASE_ROBOTS_TXT = `User-agent: *
+Allow: /
+
+Sitemap: /sitemap.xml`;
+
+export const BASE_PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="400" viewBox="0 0 800 400">
+  <rect fill="#e2e8f0" width="800" height="400"/>
+  <text fill="#64748b" font-family="system-ui, sans-serif" font-size="24" text-anchor="middle" x="400" y="210">
+    Image Placeholder
+  </text>
+</svg>`;
+
+// Minimal favicon as base64 data URI (16x16 purple square)
+export const BASE_FAVICON_ICO = `data:image/x-icon;base64,AAABAAEAEBAAAAEAIABoBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACMYv8AjGL/AI5k/wCOZP8Aj2X/AI9l/wCPZf8Aj2X/AI9l/wCPZf8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACMYP8EjWH/RJBk/2CTZP9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/wCPZf8AAAAAAAAAAAAAAACLYP8EjWH/ZJJl/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv8Aj2X/AAAAAAAAAACMYf9EkGT/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/AI9l/wAAAACNYf9gk2T/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/wCPZf8AjmL/ZpRl/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv8Aj2X/AI5k/2aVZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/AI9l/wCPZf9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/wCPZf8Aj2X/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv8Aj2X/AI9l/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/AI9l/wCPZf9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/wCPZf8Aj2X/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv8Aj2X/AI9l/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/AI9l/wAAAACPZf9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv8Aj2X/AAAAAAAAAACPZP8Ej2X/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/2aWZv9mlmb/ZpZm/wCPZf8AAAAAAAAAAAAAAAAAAAAAAAAAAACPZP8Aj2X/AI9l/wCPZf8Aj2X/AI9l/wCPZf8Aj2X/AI9l/wCPZf8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==`;
+
 // Export all base files as a map
 export const BASE_FILES_MAP: Record<string, string> = {
   'package.json': BASE_PACKAGE_JSON,
@@ -317,4 +333,6 @@ export const BASE_FILES_MAP: Record<string, string> = {
   'src/lib/utils.ts': BASE_UTILS_TS,
   'postcss.config.js': BASE_POSTCSS_CONFIG,
   'components.json': BASE_COMPONENTS_JSON,
+  'public/robots.txt': BASE_ROBOTS_TXT,
+  'public/placeholder.svg': BASE_PLACEHOLDER_SVG,
 };

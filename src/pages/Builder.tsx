@@ -57,6 +57,9 @@ const Builder = () => {
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [isRefreshing, setIsRefreshing] = useState(false);
   
+  // State for preview HTML from edge function
+  const [currentPreviewHtml, setCurrentPreviewHtml] = useState<string>('');
+  
   // Code generation hook
   const { isGenerating, generateComponent } = useCodeGeneration(projectId);
   
@@ -77,7 +80,8 @@ const Builder = () => {
     return Array.from(map.values()).sort((a, b) => a.file_path.localeCompare(b.file_path));
   })();
 
-  const previewHtml = generateFullPreviewHtml();
+  // Use edge function preview HTML if available, otherwise generate locally
+  const previewHtml = currentPreviewHtml || generateFullPreviewHtml();
   
   // Auto-save hook
   const { isSaving, lastSavedText, save, markChanged } = useAutoSave(projectId);
@@ -160,9 +164,17 @@ const Builder = () => {
       let aiContent: string;
       let codeGenerated: string | undefined;
       
-       if (result.success && result.component) {
-         aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nফাইল: ${result.component.filePath}\n\nPreview updated with your new component.`;
+      // Check if it's a conversation response (no component generated)
+      if (result.success && (result as any).type === 'conversation') {
+        aiContent = (result as any).response || "আমি আপনাকে সাহায্য করতে পারি!";
+      } else if (result.success && result.component) {
+        aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nফাইল: ${result.component.filePath}\n\nPreview updated with your new component.`;
         codeGenerated = result.component.code;
+        
+        // Update preview HTML from edge function response
+        if (result.component.previewHtml) {
+          setCurrentPreviewHtml(result.component.previewHtml);
+        }
       } else {
         aiContent = result.error || "I couldn't generate the component. Please try again!";
       }

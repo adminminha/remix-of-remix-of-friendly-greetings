@@ -5,8 +5,10 @@ import { GeneratedComponent, useProjectFiles } from './useProjectFiles';
 
 export interface GenerationResult {
   success: boolean;
+  type?: 'component' | 'conversation';
   component?: GeneratedComponent;
   description?: string;
+  response?: string; // For conversation type
   error?: string;
 }
 
@@ -48,9 +50,22 @@ export function useCodeGeneration(projectId: string | undefined) {
         throw new Error(data.error || 'Generation failed');
       }
 
+      // Handle conversation type response
+      if (data.type === 'conversation') {
+        const result: GenerationResult = {
+          success: true,
+          type: 'conversation',
+          response: data.response,
+        };
+        setLastGeneration(result);
+        return result;
+      }
+
+      // Handle component generation
       const component = data.component as GeneratedComponent;
       const result: GenerationResult = {
         success: true,
+        type: 'component',
         component,
         description: data.description,
       };
