@@ -32,14 +32,6 @@ interface Project {
   preview_url: string | null;
 }
 
-interface Page {
-  id: string;
-  title: string;
-  slug: string;
-  is_home: boolean;
-  component_path: string | null;
-}
-
 const Builder = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
@@ -53,17 +45,17 @@ const Builder = () => {
   const [showExportDialog, setShowExportDialog] = useState(false);
   const [showDevMode, setShowDevMode] = useState(false);
   
-  // New state for device and refresh
+  // Device and refresh state
   const [device, setDevice] = useState<DeviceType>('desktop');
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // State for preview HTML from edge function
+  // Preview HTML from edge function (priority)
   const [currentPreviewHtml, setCurrentPreviewHtml] = useState<string>('');
   
   // Code generation hook
-  const { isGenerating, generateComponent } = useCodeGeneration(projectId);
+  const { isGenerating, generationProgress, generateComponent } = useCodeGeneration(projectId);
   
-  // Project files hook (generated files live here)
+  // Project files hook
   const {
     files: generatedFiles,
     isLoading: filesLoading,
@@ -71,9 +63,9 @@ const Builder = () => {
     generateFullPreviewHtml,
   } = useProjectFiles(projectId);
 
+  // Merge base template with generated files
   const baseTemplateFiles = getBaseTemplateFiles();
   const mergedFiles = (() => {
-    // generated files should override base template with same path
     const map = new Map<string, { file_path: string; content: string | null }>();
     for (const f of baseTemplateFiles) map.set(f.file_path, { file_path: f.file_path, content: f.content });
     for (const f of generatedFiles) map.set(f.file_path, { file_path: f.file_path, content: f.content });
@@ -90,6 +82,7 @@ const Builder = () => {
     if (projectId) {
       fetchProject();
       fetchMessages();
+      fetchFiles();
     }
   }, [projectId]);
 
@@ -141,7 +134,7 @@ const Builder = () => {
   const handleSendMessage = async (content: string) => {
     if (!projectId) return;
 
-    // Add user message
+    // Add user message immediately
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -164,19 +157,27 @@ const Builder = () => {
       let aiContent: string;
       let codeGenerated: string | undefined;
       
-      // Check if it's a conversation response (no component generated)
-      if (result.success && (result as any).type === 'conversation') {
-        aiContent = (result as any).response || "আমি আপনাকে সাহায্য করতে পারি!";
-      } else if (result.success && result.component) {
-        aiContent = `✅ ${result.description || `Created ${result.component.componentName}!`}\n\nফাইল: ${result.component.filePath}\n\nPreview updated with your new component.`;
-        codeGenerated = result.component.code;
+      // Handle different response types
+      if (result.success && result.type === 'conversation') {
+        // Conversation response
+        aiContent = result.response || "আমি আপনাকে সাহায্য করতে পারি! কি ধরনের website তৈরি করতে চান?";
+      } else if (result.success && (result.type === 'website' || result.type === 'component')) {
+        // Component/Website generation
+        const componentCount = result.components?.length || 1;
+        const componentNames = result.components?.map(c => c.name).join(', ') || result.component?.componentName;
+        
+        aiContent = `✅ ${result.description || `Created ${componentNames}!`}\n\n🎉 Generated ${componentCount} component(s)!\n\nPreview updated with your new website.`;
+        codeGenerated = result.component?.code;
         
         // Update preview HTML from edge function response
-        if (result.component.previewHtml) {
+        if (result.component?.previewHtml) {
           setCurrentPreviewHtml(result.component.previewHtml);
         }
+        
+        // Refresh files to show in Dev Mode
+        await fetchFiles();
       } else {
-        aiContent = result.error || "I couldn't generate the component. Please try again!";
+        aiContent = `❌ ${result.error || "Generation failed. Please try again!"}`;
       }
       
       const aiResponse: Message = {
@@ -210,11 +211,9 @@ const Builder = () => {
   };
 
   const handleUndo = async (messageId: string) => {
-    // Find the message index
     const messageIndex = messages.findIndex(m => m.id === messageId);
     if (messageIndex === -1) return;
 
-    // Remove this message and all following messages
     const newMessages = messages.slice(0, messageIndex);
     setMessages(newMessages);
 
@@ -256,6 +255,7 @@ const Builder = () => {
   const handleToggleDevMode = () => {
     setShowDevMode(!showDevMode);
   };
+
   const handlePreview = () => {
     if (project?.preview_url) {
       window.open(project.preview_url, '_blank');
@@ -278,15 +278,17 @@ const Builder = () => {
     setShowExportDialog(true);
   };
 
-  const handleRefresh = () => {
+  const handleRefresh = async () => {
     setIsRefreshing(true);
-    // Simulate refresh
-    setTimeout(() => {
-      setIsRefreshing(false);
-      fetchProject();
-      fetchFiles();
+    try {
+      await fetchProject();
+      await fetchFiles();
+      // Clear cached preview to force regeneration
+      setCurrentPreviewHtml('');
       toast({ title: "Refreshed", description: "Preview has been refreshed" });
-    }, 1000);
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const handleFullscreen = () => {
@@ -337,7 +339,6 @@ const Builder = () => {
           className={cn(
             "border-r border-border/50 flex flex-col",
             "md:flex md:w-[40%]",
-            // Mobile: show only when chat view is active
             mobileView === 'chat' ? "flex w-full" : "hidden"
           )}
         >
@@ -352,6 +353,16 @@ const Builder = () => {
               return f?.content ?? null;
             }}
           />
+          
+          {/* Show generation progress */}
+          {isGenerating && generationProgress && (
+            <div className="px-4 pb-4">
+              <div className="bg-primary/10 rounded-lg p-3 flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <span className="text-sm text-primary">{generationProgress}</span>
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Preview Panel - 60% on desktop */}
@@ -359,7 +370,6 @@ const Builder = () => {
           className={cn(
             "flex-1 flex flex-col",
             "md:flex",
-            // Mobile: show only when preview view is active
             mobileView === 'preview' ? "flex w-full" : "hidden"
           )}
         >
