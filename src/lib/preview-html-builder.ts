@@ -1,168 +1,17 @@
-// Tota AI - Component Generation Edge Function
-// Generates React/JSX code using AI based on user prompts
-// Uses template-aware system prompt for consistent component generation
+// Tota AI - Preview HTML Builder
+// Generates the complete HTML for iframe preview with React + Tailwind
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { PreviewFile, buildMinimalFileSet } from './preview-builder';
 
-interface GenerateRequest {
-  prompt: string;
-  projectId: string;
-  currentPage?: string;
-  existingComponents?: string[];
-  requestType?: 'component' | 'layout' | 'page' | 'feature';
-}
-
-interface GeneratedComponent {
-  code: string;
-  componentName: string;
-  filePath: string;
-  previewHtml: string;
-}
-
-// Complete list of available UI components with usage details
-const AVAILABLE_UI_COMPONENTS = `
-## Available UI Components (import from @/components/ui/)
-
-### Core Components
-- Button: <Button variant="default|destructive|outline|secondary|ghost|link" size="default|sm|lg|icon">Text</Button>
-- Input: <Input type="text|email|password|number" placeholder="..." />
-- Textarea: <Textarea placeholder="..." rows={4} />
-- Label: <Label htmlFor="id">Label text</Label>
-
-### Card Components
-- Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
-  Example:
-  <Card>
-    <CardHeader>
-      <CardTitle>Title</CardTitle>
-      <CardDescription>Description</CardDescription>
-    </CardHeader>
-    <CardContent>Content here</CardContent>
-    <CardFooter>Footer actions</CardFooter>
-  </Card>
-
-### Display Components
-- Badge: <Badge variant="default|secondary|destructive|outline">Text</Badge>
-- Avatar, AvatarImage, AvatarFallback
-  <Avatar><AvatarImage src="..." /><AvatarFallback>AB</AvatarFallback></Avatar>
-- Progress: <Progress value={50} />
-- Skeleton: <Skeleton className="h-4 w-[200px]" />
-- Separator: <Separator orientation="horizontal|vertical" />
-
-### Form Components
-- Checkbox: <Checkbox id="terms" checked={checked} onCheckedChange={setChecked} />
-- Switch: <Switch checked={enabled} onCheckedChange={setEnabled} />
-- Select, SelectTrigger, SelectValue, SelectContent, SelectItem
-  <Select value={value} onValueChange={setValue}>
-    <SelectTrigger><SelectValue placeholder="Select..." /></SelectTrigger>
-    <SelectContent>
-      <SelectItem value="1">Option 1</SelectItem>
-    </SelectContent>
-  </Select>
-
-### Table Components
-- Table, TableHeader, TableBody, TableRow, TableHead, TableCell
-  <Table>
-    <TableHeader>
-      <TableRow><TableHead>Column</TableHead></TableRow>
-    </TableHeader>
-    <TableBody>
-      <TableRow><TableCell>Data</TableCell></TableRow>
-    </TableBody>
-  </Table>
-
-### Navigation & Layout
-- Tabs, TabsList, TabsTrigger, TabsContent
-  <Tabs defaultValue="tab1">
-    <TabsList>
-      <TabsTrigger value="tab1">Tab 1</TabsTrigger>
-      <TabsTrigger value="tab2">Tab 2</TabsTrigger>
-    </TabsList>
-    <TabsContent value="tab1">Content 1</TabsContent>
-    <TabsContent value="tab2">Content 2</TabsContent>
-  </Tabs>
-- Accordion, AccordionItem, AccordionTrigger, AccordionContent
-- ScrollArea: <ScrollArea className="h-[200px]">content</ScrollArea>
-
-### Feedback Components
-- Alert, AlertTitle, AlertDescription
-  <Alert variant="default|destructive">
-    <AlertTitle>Title</AlertTitle>
-    <AlertDescription>Description</AlertDescription>
-  </Alert>
-
-### Interactive Components
-- Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription
-- Sheet, SheetTrigger, SheetContent, SheetHeader, SheetTitle
-- Tooltip, TooltipTrigger, TooltipContent, TooltipProvider
-
-## Available Icons (import from lucide-react)
-ArrowRight, ArrowLeft, Check, X, Plus, Minus, Search, Settings, User, Mail, Phone, MapPin, Calendar, Clock, Star, Heart, Home, Menu, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ExternalLink, Download, Upload, Edit, Trash, Copy, Share, Send, Save, Loader2, Sparkles, Zap, Rocket, Code, Palette, Layout, Image, Video, Music, File, Folder, Globe, Link, Lock, Unlock, Eye, EyeOff, Bell, MessageSquare, Info, AlertCircle, CheckCircle, XCircle, MoreHorizontal, MoreVertical, RefreshCw, Filter, SortAsc, SortDesc, Grid, List, Play, Pause, Volume2, VolumeX, Wifi, Battery, Sun, Moon, Cloud, Umbrella, Thermometer, Wind, Droplet, Flame, Leaf, Tree, Mountain, Building, Car, Plane, Ship, Train, Bike, Walk, CreditCard, DollarSign, Euro, Percent, TrendingUp, TrendingDown, BarChart, PieChart, Activity, Target, Award, Gift, ShoppingCart, ShoppingBag, Package, Truck, MapPinned, Navigation, Compass, Flag, Bookmark, Tag, Tags, Hash, AtSign, Paperclip, Link2, Unlink, Scissors, Clipboard, ClipboardCheck, ClipboardList, FileText, FileCode, FilePlus, FileMinus, FolderOpen, FolderPlus, Archive, Inbox, Outbox, Forward, Reply, ReplyAll, CornerUpLeft, CornerUpRight, CornerDownLeft, CornerDownRight, ArrowUp, ArrowDown, Move, Maximize, Minimize, Expand, Shrink, ZoomIn, ZoomOut, RotateCw, RotateCcw, Repeat, Shuffle, SkipBack, SkipForward, Rewind, FastForward, Mic, MicOff, Camera, CameraOff, Film, Tv, Radio, Headphones, Speaker, Monitor, Smartphone, Tablet, Laptop, Server, Database, HardDrive, Cpu, Wifi, Bluetooth, Cast, Airplay, Power, PowerOff, LogIn, LogOut, Key, Shield, ShieldCheck, UserPlus, UserMinus, UserCheck, UserX, Users, Group, Briefcase, Lightbulb
-`;
-
-// System prompt for AI code generation
-const SYSTEM_PROMPT = `You are Tota AI, a powerful React component generator that creates beautiful, functional UI components.
-
-## Your Capabilities:
-1. Generate complete React components with TypeScript
-2. Create responsive designs using Tailwind CSS
-3. Build functional features with React hooks (useState, useEffect, etc.)
-4. Support both English and Bengali (বাংলা) prompts
-
-## CRITICAL RULES:
-1. ONLY use components from the provided UI library - never create custom base components
-2. Use Tailwind CSS for ALL styling - no inline styles or CSS files
-3. Generate self-contained components with mock data when needed
-4. Make designs visually appealing with proper spacing, colors, and shadows
-5. Include TypeScript types when defining data structures
-6. Use placeholder images: https://placehold.co/800x400 (adjust dimensions as needed)
-7. For icons, ONLY use lucide-react icons listed below
-
-${AVAILABLE_UI_COMPONENTS}
-
-## Response Format:
-Return ONLY a valid JSON object (no markdown, no code blocks):
-{
-  "componentName": "ComponentName",
-  "code": "complete React component code as a string",
-  "description": "Brief description of what was created in the user's language"
-}
-
-## Code Guidelines:
-1. Start with: import React from 'react';
-2. Import UI components like: import { Button } from '@/components/ui/button';
-3. Import icons like: import { ArrowRight, Star } from 'lucide-react';
-4. Use 'export default' for the main component
-5. Use semantic HTML (section, header, main, footer, article, nav)
-6. Make all designs mobile-responsive using Tailwind breakpoints (sm:, md:, lg:)
-7. Add hover states and transitions for interactive elements
-8. Use modern design patterns: gradients, shadows, rounded corners
-9. Include functional state management when the component needs interactivity
-
-## Design Principles:
-- Clean, modern aesthetics
-- Consistent spacing (p-4, p-6, p-8, gap-4, gap-6)
-- Professional color palette using Tailwind colors
-- Smooth transitions (transition-all, duration-300)
-- Hover effects for interactivity
-- Proper contrast for readability
-- Card-based layouts for content grouping
-
-## Example Response for "Create a hero section":
-{
-  "componentName": "HeroSection",
-  "code": "import React from 'react';\\nimport { Button } from '@/components/ui/button';\\nimport { ArrowRight, Sparkles } from 'lucide-react';\\n\\nconst HeroSection = () => {\\n  return (\\n    <section className=\\"relative bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white py-20 lg:py-32 overflow-hidden\\">\\n      <div className=\\"absolute inset-0 bg-[url('/grid.svg')] opacity-10\\"></div>\\n      <div className=\\"container mx-auto px-4 relative z-10\\">\\n        <div className=\\"max-w-3xl mx-auto text-center\\">\\n          <div className=\\"inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6\\">\\n            <Sparkles className=\\"h-4 w-4\\" />\\n            <span className=\\"text-sm font-medium\\">Welcome to the future</span>\\n          </div>\\n          <h1 className=\\"text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight\\">\\n            Build Amazing Products\\n            <span className=\\"block text-yellow-300\\">With AI Power</span>\\n          </h1>\\n          <p className=\\"text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto\\">\\n            Transform your ideas into reality with our cutting-edge platform. Start building today.\\n          </p>\\n          <div className=\\"flex flex-col sm:flex-row gap-4 justify-center\\">\\n            <Button size=\\"lg\\" className=\\"bg-white text-purple-600 hover:bg-gray-100 font-semibold\\">\\n              Get Started Free\\n              <ArrowRight className=\\"ml-2 h-5 w-5\\" />\\n            </Button>\\n            <Button size=\\"lg\\" variant=\\"outline\\" className=\\"border-white text-white hover:bg-white/10\\">\\n              Watch Demo\\n            </Button>\\n          </div>\\n        </div>\\n      </div>\\n    </section>\\n  );\\n};\\n\\nexport default HeroSection;",
-  "description": "Created a stunning hero section with gradient background, animated badge, bold typography, and dual CTA buttons"
-}`;
-
-// Pre-bundled UI component definitions for iframe preview
-const UI_COMPONENTS_SCRIPT = `
+/**
+ * Pre-bundled UI components as plain JavaScript (no JSX)
+ * These work with CDN React without needing compilation
+ */
+const UI_COMPONENTS_RUNTIME = `
+// cn utility function
 const cn = (...classes) => classes.filter(Boolean).join(' ');
 
+// Button Component
 const Button = React.forwardRef(({ className, variant = "default", size = "default", children, ...props }, ref) => {
   const variants = {
     default: "bg-purple-600 text-white hover:bg-purple-700",
@@ -190,6 +39,7 @@ const Button = React.forwardRef(({ className, variant = "default", size = "defau
   }, children);
 });
 
+// Card Components
 const Card = React.forwardRef(({ className, children, ...props }, ref) => (
   React.createElement("div", {
     ref,
@@ -238,6 +88,7 @@ const CardFooter = React.forwardRef(({ className, children, ...props }, ref) => 
   }, children)
 ));
 
+// Badge Component
 const Badge = ({ className, variant = "default", children, ...props }) => {
   const variants = {
     default: "bg-purple-600 text-white",
@@ -255,6 +106,7 @@ const Badge = ({ className, variant = "default", children, ...props }) => {
   }, children);
 };
 
+// Input Component
 const Input = React.forwardRef(({ className, type = "text", ...props }, ref) => (
   React.createElement("input", {
     ref,
@@ -267,6 +119,7 @@ const Input = React.forwardRef(({ className, type = "text", ...props }, ref) => 
   })
 ));
 
+// Textarea Component
 const Textarea = React.forwardRef(({ className, ...props }, ref) => (
   React.createElement("textarea", {
     ref,
@@ -278,6 +131,7 @@ const Textarea = React.forwardRef(({ className, ...props }, ref) => (
   })
 ));
 
+// Label Component
 const Label = React.forwardRef(({ className, children, ...props }, ref) => (
   React.createElement("label", {
     ref,
@@ -286,6 +140,7 @@ const Label = React.forwardRef(({ className, children, ...props }, ref) => (
   }, children)
 ));
 
+// Avatar Components
 const Avatar = React.forwardRef(({ className, children, ...props }, ref) => (
   React.createElement("span", {
     ref,
@@ -312,6 +167,7 @@ const AvatarFallback = React.forwardRef(({ className, children, ...props }, ref)
   }, children)
 ));
 
+// Separator Component
 const Separator = React.forwardRef(({ className, orientation = "horizontal", ...props }, ref) => (
   React.createElement("div", {
     ref,
@@ -324,6 +180,7 @@ const Separator = React.forwardRef(({ className, orientation = "horizontal", ...
   })
 ));
 
+// Progress Component
 const Progress = React.forwardRef(({ className, value = 0, ...props }, ref) => (
   React.createElement("div", {
     ref,
@@ -335,6 +192,7 @@ const Progress = React.forwardRef(({ className, value = 0, ...props }, ref) => (
   }))
 ));
 
+// ScrollArea (simplified)
 const ScrollArea = React.forwardRef(({ className, children, ...props }, ref) => (
   React.createElement("div", {
     ref,
@@ -343,6 +201,7 @@ const ScrollArea = React.forwardRef(({ className, children, ...props }, ref) => 
   }, children)
 ));
 
+// Skeleton Component
 const Skeleton = ({ className, ...props }) => (
   React.createElement("div", {
     className: cn("animate-pulse rounded-md bg-gray-200", className),
@@ -350,6 +209,7 @@ const Skeleton = ({ className, ...props }) => (
   })
 );
 
+// Table Components
 const Table = React.forwardRef(({ className, children, ...props }, ref) => (
   React.createElement("div", { className: "relative w-full overflow-auto" },
     React.createElement("table", {
@@ -400,12 +260,15 @@ const TableCell = React.forwardRef(({ className, children, ...props }, ref) => (
   }, children)
 ));
 
+// Tabs Components (simplified)
 const Tabs = ({ defaultValue, value, onValueChange, className, children, ...props }) => {
   const [activeTab, setActiveTab] = React.useState(value || defaultValue);
+  
   const handleChange = (newValue) => {
     setActiveTab(newValue);
     if (onValueChange) onValueChange(newValue);
   };
+  
   return React.createElement("div", {
     className: cn("", className),
     ...props
@@ -445,6 +308,7 @@ const TabsContent = ({ value, className, children, activeTab, ...props }) => {
   }, children);
 };
 
+// Alert Components
 const Alert = React.forwardRef(({ className, variant = "default", children, ...props }, ref) => {
   const variants = {
     default: "bg-white border-gray-200",
@@ -474,13 +338,16 @@ const AlertDescription = React.forwardRef(({ className, children, ...props }, re
   }, children)
 ));
 
+// Switch Component (simplified)
 const Switch = React.forwardRef(({ className, checked = false, onCheckedChange, ...props }, ref) => {
   const [isChecked, setIsChecked] = React.useState(checked);
+  
   const handleClick = () => {
     const newValue = !isChecked;
     setIsChecked(newValue);
     if (onCheckedChange) onCheckedChange(newValue);
   };
+  
   return React.createElement("button", {
     ref,
     type: "button",
@@ -501,13 +368,16 @@ const Switch = React.forwardRef(({ className, checked = false, onCheckedChange, 
   }));
 });
 
+// Checkbox Component (simplified)
 const Checkbox = React.forwardRef(({ className, checked = false, onCheckedChange, ...props }, ref) => {
   const [isChecked, setIsChecked] = React.useState(checked);
+  
   const handleClick = () => {
     const newValue = !isChecked;
     setIsChecked(newValue);
     if (onCheckedChange) onCheckedChange(newValue);
   };
+  
   return React.createElement("button", {
     ref,
     type: "button",
@@ -529,6 +399,7 @@ const Checkbox = React.forwardRef(({ className, checked = false, onCheckedChange
   }, React.createElement("polyline", { points: "20 6 9 17 4 12" })));
 });
 
+// Make components globally available
 window.UI = {
   Button, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter,
   Badge, Input, Textarea, Label, Avatar, AvatarImage, AvatarFallback,
@@ -536,13 +407,16 @@ window.UI = {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
   Tabs, TabsList, TabsTrigger, TabsContent,
   Alert, AlertTitle, AlertDescription,
-  Switch, Checkbox, cn
+  Switch, Checkbox,
+  cn
 };
 `;
 
-// Lucide icons as simple SVG components
-const LUCIDE_ICONS_SCRIPT = `
-const createIcon = (paths) => (props) => 
+/**
+ * Lucide icons as simple SVG components
+ */
+const LUCIDE_ICONS_RUNTIME = `
+const createIcon = (paths) => (props) =>
   React.createElement("svg", {
     xmlns: "http://www.w3.org/2000/svg",
     width: props.size || 24,
@@ -583,7 +457,6 @@ const Icons = {
   Edit: createIcon(["M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7", "M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"]),
   Trash: createIcon(["M3 6h18", "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"]),
   Copy: createIcon(["M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2", "M15 2H9a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1Z"]),
-  Share: createIcon(["M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8", "m16 6-4-4-4 4", "M12 2v13"]),
   Send: createIcon(["m22 2-7 20-4-9-9-4Z", "M22 2 11 13"]),
   Save: createIcon(["M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z", "M17 21v-8H7v8", "M7 3v5h8"]),
   Loader2: createIcon(["M21 12a9 9 0 1 1-6.219-8.56"]),
@@ -591,10 +464,10 @@ const Icons = {
   Zap: createIcon(["M13 2 3 14h9l-1 8 10-12h-9l1-8z"]),
   Rocket: createIcon(["M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09Z", "m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2Z", "M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0", "M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"]),
   Code: createIcon(["m16 18 6-6-6-6", "m8 6-6 6 6 6"]),
-  Palette: createIcon(["M12 22a10 10 0 1 1 3-19.5", "M12 22a10 10 0 0 0 3-19.5"]),
+  Palette: createIcon(["M12 22a10 10 0 1 1 3-19.5", "M12 22a10 10 0 0 0 3-19.5", "m5 10 3 3", "m14 14 2 2", "m14 8 2-2", "m5 16 3-3"]),
   Layout: createIcon(["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z", "M3 9h18", "M9 21V9"]),
-  Image: createIcon(["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z", "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"]),
-  Globe: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M2 12h20"]),
+  Image: createIcon(["M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2Z", "m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21", "M9 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"]),
+  Globe: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M2 12h20", "M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10Z"]),
   Link: createIcon(["M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71", "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"]),
   Lock: createIcon(["M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2Z", "M7 11V7a5 5 0 0 1 10 0v4"]),
   Eye: createIcon(["M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"]),
@@ -603,203 +476,47 @@ const Icons = {
   Info: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 16v-4", "M12 8h.01"]),
   AlertCircle: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 8v4", "M12 16h.01"]),
   CheckCircle: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "m9 12 2 2 4-4"]),
-  XCircle: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "m15 9-6 6", "m9 9 6 6"]),
-  MoreHorizontal: createIcon(["M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z", "M19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z", "M5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"]),
-  Filter: createIcon(["M22 3H2l8 9.46V19l4 2v-8.54L22 3z"]),
-  RefreshCw: createIcon(["M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8", "M21 3v5h-5", "M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16", "M8 16H3v5"]),
-  Grid: createIcon(["M3 3h7v7H3z", "M14 3h7v7h-7z", "M14 14h7v7h-7z", "M3 14h7v7H3z"]),
-  List: createIcon(["M8 6h13", "M8 12h13", "M8 18h13", "M3 6h.01", "M3 12h.01", "M3 18h.01"]),
-  Play: createIcon(["m5 3 14 9-14 9V3z"]),
-  TrendingUp: createIcon(["m23 6-9.5 9.5-5-5L1 18", "M17 6h6v6"]),
-  BarChart: createIcon(["M12 20V10", "M18 20V4", "M6 20v-4"]),
-  Target: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z", "M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"]),
-  Award: createIcon(["M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z", "M8.21 13.89 7 23l5-3 5 3-1.21-9.12"]),
-  ShoppingCart: createIcon(["M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6", "M9 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z", "M20 22a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"]),
-  CreditCard: createIcon(["M21 4H3a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z", "M1 10h22"]),
-  DollarSign: createIcon(["M12 2v20", "M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"]),
-  Users: createIcon(["M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2", "M9 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z", "M22 21v-2a4 4 0 0 0-3-3.87", "M16 3.13a4 4 0 0 1 0 7.75"]),
-  Briefcase: createIcon(["M20 7H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z", "M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"]),
-  Calendar: createIcon(["M8 2v4", "M16 2v4", "M3 10h18", "M21 8v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"]),
-  Clock: createIcon(["M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z", "M12 6v6l4 2"]),
-  MapPin: createIcon(["M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z", "M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"]),
 };
 
+// Make icons globally available
+window.Icons = Icons;
+
+// Also make them available as individual exports (for import { IconName } from 'lucide-react')
 Object.keys(Icons).forEach(name => {
   window[name] = Icons[name];
 });
-window.Icons = Icons;
 `;
 
-Deno.serve(async (req) => {
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { prompt, projectId, currentPage, existingComponents, requestType } = (await req.json()) as GenerateRequest;
-
-    if (!prompt || !projectId) {
-      return new Response(
-        JSON.stringify({ error: "Missing required fields: prompt and projectId" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      console.error("LOVABLE_API_KEY not configured");
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Build context message
-    let contextMessage = `User Request: "${prompt}"`;
-    if (currentPage) {
-      contextMessage += `\nCurrent Page: ${currentPage}`;
-    }
-    if (existingComponents && existingComponents.length > 0) {
-      contextMessage += `\nExisting Components in project: ${existingComponents.join(", ")}`;
-    }
-    if (requestType) {
-      contextMessage += `\nRequest Type: ${requestType}`;
-    }
-
-    console.log("Generating component for prompt:", prompt);
-
-    // Call Lovable AI Gateway
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: contextMessage }
-        ],
-        temperature: 0.7,
-        max_tokens: 8192,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again in a few seconds." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`AI Gateway error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    const aiContent = data.choices[0]?.message?.content;
-
-    if (!aiContent) {
-      throw new Error("No content received from AI");
-    }
-
-    console.log("AI Response received, length:", aiContent.length);
-
-    // Parse AI response (it should be JSON)
-    let parsedResponse;
-    try {
-      // Try to extract JSON from the response (in case there's extra text)
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
-      // Fallback: create a simple component
-      parsedResponse = {
-        componentName: "GeneratedComponent",
-        code: `import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
-
-const GeneratedComponent = () => {
-  return (
-    <div className="p-8">
-      <Card className="max-w-md mx-auto">
-        <CardContent className="p-6 text-center">
-          <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-900">Component generation in progress...</p>
-          <p className="text-sm text-gray-500 mt-2">Request: ${prompt.replace(/"/g, '\\"')}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default GeneratedComponent;`,
-        description: "Placeholder component - AI response parsing needed improvement"
-      };
-    }
-
-    const { componentName, code, description } = parsedResponse;
-
-    // Generate live React preview HTML
-    const previewHtml = generateLivePreviewHtml(code, componentName);
-
-    const result: GeneratedComponent = {
-      code,
-      componentName,
-      filePath: `src/components/${componentName}.tsx`,
-      previewHtml,
-    };
-
-    console.log("Generated component:", componentName);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        component: result,
-        description,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  } catch (error) {
-    console.error("Error in generate-component:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Failed to generate component",
-        message: error instanceof Error ? error.message : "Unknown error",
-      }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
-  }
-});
-
 /**
- * Generate live React preview HTML from component code
+ * Transform JSX code to work with CDN React + Babel
+ * Replaces imports and makes components globally available
  */
-function generateLivePreviewHtml(componentCode: string, componentName: string): string {
-  // Process the code for the preview
-  let processedCode = componentCode;
-  
+function transformCodeForPreview(code: string, componentName: string): string {
+  let transformed = code;
+
   // Remove all import statements
-  processedCode = processedCode.replace(/import\s+.*?from\s+['"][^'"]+['"];?\n?/g, '');
+  transformed = transformed.replace(/import\s+.*?from\s+['"][^'"]+['"];?\n?/g, '');
   
   // Remove export default statements but keep the component
-  processedCode = processedCode.replace(/export\s+default\s+/g, '');
+  transformed = transformed.replace(/export\s+default\s+/g, '');
+  
+  // Make the component globally available at the end
+  const lastBrace = transformed.lastIndexOf(';');
+  if (lastBrace > 0 && !transformed.includes(`window.${componentName}`)) {
+    transformed += `\nwindow.${componentName} = ${componentName};`;
+  }
+
+  return transformed;
+}
+
+/**
+ * Generate complete preview HTML from component code
+ */
+export function generatePreviewHtml(
+  componentCode: string,
+  componentName: string
+): string {
+  const transformedCode = transformCodeForPreview(componentCode, componentName);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -826,17 +543,18 @@ function generateLivePreviewHtml(componentCode: string, componentName: string): 
 <body>
   <div id="root"></div>
   
+  <!-- UI Components Runtime -->
   <script>
-    ${UI_COMPONENTS_SCRIPT}
+    ${UI_COMPONENTS_RUNTIME}
   </script>
   
+  <!-- Lucide Icons Runtime -->
   <script>
-    ${LUCIDE_ICONS_SCRIPT}
+    ${LUCIDE_ICONS_RUNTIME}
   </script>
   
+  <!-- Generated Component -->
   <script type="text/babel">
-    const { useState, useEffect, useCallback, useMemo, useRef } = React;
-    
     // Destructure UI components
     const { 
       Button, Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter,
@@ -845,22 +563,21 @@ function generateLivePreviewHtml(componentCode: string, componentName: string): 
       Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
       Tabs, TabsList, TabsTrigger, TabsContent,
       Alert, AlertTitle, AlertDescription,
-      Switch, Checkbox, cn
+      Switch, Checkbox,
+      cn
     } = window.UI;
     
     // Destructure icons
     const {
       ArrowRight, ArrowLeft, Check, X, Plus, Minus, Search, Settings, User, Mail, Phone,
       Star, Heart, Home, Menu, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
-      ExternalLink, Download, Upload, Edit, Trash, Copy, Share, Send, Save, Loader2,
+      ExternalLink, Download, Upload, Edit, Trash, Copy, Send, Save, Loader2,
       Sparkles, Zap, Rocket, Code, Palette, Layout, Image, Globe, Link, Lock, Eye,
-      Bell, MessageSquare, Info, AlertCircle, CheckCircle, XCircle, MoreHorizontal,
-      Filter, RefreshCw, Grid, List, Play, TrendingUp, BarChart, Target, Award,
-      ShoppingCart, CreditCard, DollarSign, Users, Briefcase, Calendar, Clock, MapPin
+      Bell, MessageSquare, Info, AlertCircle, CheckCircle
     } = window.Icons;
     
     // Generated component
-    ${processedCode}
+    ${transformedCode}
     
     // Render
     const container = document.getElementById('root');
@@ -869,4 +586,26 @@ function generateLivePreviewHtml(componentCode: string, componentName: string): 
   </script>
 </body>
 </html>`;
+}
+
+/**
+ * Build complete preview HTML from multiple generated files
+ * Used when there are multiple components that work together
+ */
+export function buildFullPreviewHtml(generatedFiles: PreviewFile[]): string {
+  if (generatedFiles.length === 0) {
+    return '';
+  }
+
+  // Find the main/entry component (usually Home.tsx or the latest one)
+  const entryFile = generatedFiles.find(f => f.file_path.includes('Home.tsx')) 
+    || generatedFiles[generatedFiles.length - 1];
+
+  if (!entryFile || !entryFile.content) {
+    return '';
+  }
+
+  // For now, just preview the entry file
+  const componentName = entryFile.file_path.split('/').pop()?.replace('.tsx', '') || 'Component';
+  return generatePreviewHtml(entryFile.content, componentName);
 }
