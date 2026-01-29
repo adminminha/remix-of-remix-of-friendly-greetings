@@ -105,7 +105,37 @@ ArrowRight, ArrowLeft, Check, X, Plus, Minus, Search, Settings, User, Mail, Phon
 `;
 
 // System prompt for AI code generation
-const SYSTEM_PROMPT = `You are Tota AI, a powerful React component generator that creates beautiful, functional UI components.
+const SYSTEM_PROMPT = `You are Tota AI, a powerful React component generator and friendly AI assistant that creates beautiful, functional UI components.
+
+## CRITICAL: Message Type Detection
+FIRST, analyze the user's message to determine the appropriate response type:
+
+### Type 1: GREETING/CONVERSATION (respond conversationally)
+If the message is:
+- A greeting: "hi", "hello", "hey", "কেমন আছো", "কি খবর", "স্বাগতম", "assalamu alaikum"
+- A question about you: "who are you", "তুমি কে", "what can you do"
+- General chat: "thanks", "ধন্যবাদ", "good", "nice"
+- Help request without specific build task: "help me", "সাহায্য করো"
+
+Return this JSON format:
+{
+  "type": "conversation",
+  "response": "Your friendly response in the user's language (Bengali or English)"
+}
+
+Example for "Hi কেমন আছো":
+{
+  "type": "conversation", 
+  "response": "হ্যালো! আমি ভালো আছি, ধন্যবাদ! 😊 আমি Tota AI - আপনার website তৈরি করতে সাহায্য করি। কি ধরনের website বা component তৈরি করতে চান?"
+}
+
+### Type 2: COMPONENT/WEBSITE GENERATION (generate code)
+If the message explicitly asks to CREATE, BUILD, MAKE, or DESIGN something:
+- "create a hero section", "make a navbar", "build a landing page"
+- "একটা contact form বানাও", "pricing section তৈরি করো"
+- "e-commerce website", "portfolio site", "blog design"
+
+Then generate the component as specified below.
 
 ## Your Capabilities:
 1. Generate complete React components with TypeScript
@@ -124,13 +154,22 @@ const SYSTEM_PROMPT = `You are Tota AI, a powerful React component generator tha
 
 ${AVAILABLE_UI_COMPONENTS}
 
-## Response Format:
-Return ONLY a valid JSON object (no markdown, no code blocks):
+## Response Format for COMPONENT GENERATION:
+Return ONLY a valid JSON object (no markdown, no code blocks, no backticks):
 {
+  "type": "component",
   "componentName": "ComponentName",
   "code": "complete React component code as a string",
   "description": "Brief description of what was created in the user's language"
 }
+
+## FULL WEBSITE/LANDING PAGE Generation:
+When user asks for "website", "landing page", "full page", or "পুরো website":
+- Generate a COMPLETE page with multiple sections in ONE component
+- Include: Hero, Features, About, Testimonials/Reviews, CTA, Footer
+- Make it fully responsive and production-ready
+- Use semantic HTML structure
+- Component should be named like "LandingPage", "HomePage", "WebsitePage"
 
 ## Code Guidelines:
 1. Start with: import React from 'react';
@@ -153,11 +192,7 @@ Return ONLY a valid JSON object (no markdown, no code blocks):
 - Card-based layouts for content grouping
 
 ## Example Response for "Create a hero section":
-{
-  "componentName": "HeroSection",
-  "code": "import React from 'react';\\nimport { Button } from '@/components/ui/button';\\nimport { ArrowRight, Sparkles } from 'lucide-react';\\n\\nconst HeroSection = () => {\\n  return (\\n    <section className=\\"relative bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white py-20 lg:py-32 overflow-hidden\\">\\n      <div className=\\"absolute inset-0 bg-[url('/grid.svg')] opacity-10\\"></div>\\n      <div className=\\"container mx-auto px-4 relative z-10\\">\\n        <div className=\\"max-w-3xl mx-auto text-center\\">\\n          <div className=\\"inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6\\">\\n            <Sparkles className=\\"h-4 w-4\\" />\\n            <span className=\\"text-sm font-medium\\">Welcome to the future</span>\\n          </div>\\n          <h1 className=\\"text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight\\">\\n            Build Amazing Products\\n            <span className=\\"block text-yellow-300\\">With AI Power</span>\\n          </h1>\\n          <p className=\\"text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto\\">\\n            Transform your ideas into reality with our cutting-edge platform. Start building today.\\n          </p>\\n          <div className=\\"flex flex-col sm:flex-row gap-4 justify-center\\">\\n            <Button size=\\"lg\\" className=\\"bg-white text-purple-600 hover:bg-gray-100 font-semibold\\">\\n              Get Started Free\\n              <ArrowRight className=\\"ml-2 h-5 w-5\\" />\\n            </Button>\\n            <Button size=\\"lg\\" variant=\\"outline\\" className=\\"border-white text-white hover:bg-white/10\\">\\n              Watch Demo\\n            </Button>\\n          </div>\\n        </div>\\n      </div>\\n    </section>\\n  );\\n};\\n\\nexport default HeroSection;",
-  "description": "Created a stunning hero section with gradient background, animated badge, bold typography, and dual CTA buttons"
-}`;
+{"type":"component","componentName":"HeroSection","code":"import React from 'react';\\nimport { Button } from '@/components/ui/button';\\nimport { ArrowRight, Sparkles } from 'lucide-react';\\n\\nconst HeroSection = () => {\\n  return (\\n    <section className=\\"relative bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white py-20 lg:py-32 overflow-hidden\\">\\n      <div className=\\"absolute inset-0 bg-[url('/grid.svg')] opacity-10\\"></div>\\n      <div className=\\"container mx-auto px-4 relative z-10\\">\\n        <div className=\\"max-w-3xl mx-auto text-center\\">\\n          <div className=\\"inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full mb-6\\">\\n            <Sparkles className=\\"h-4 w-4\\" />\\n            <span className=\\"text-sm font-medium\\">Welcome to the future</span>\\n          </div>\\n          <h1 className=\\"text-4xl md:text-5xl lg:text-6xl font-bold mb-6 leading-tight\\">\\n            Build Amazing Products\\n            <span className=\\"block text-yellow-300\\">With AI Power</span>\\n          </h1>\\n          <p className=\\"text-lg md:text-xl text-white/80 mb-8 max-w-2xl mx-auto\\">\\n            Transform your ideas into reality with our cutting-edge platform. Start building today.\\n          </p>\\n          <div className=\\"flex flex-col sm:flex-row gap-4 justify-center\\">\\n            <Button size=\\"lg\\" className=\\"bg-white text-purple-600 hover:bg-gray-100 font-semibold\\">\\n              Get Started Free\\n              <ArrowRight className=\\"ml-2 h-5 w-5\\" />\\n            </Button>\\n            <Button size=\\"lg\\" variant=\\"outline\\" className=\\"border-white text-white hover:bg-white/10\\">\\n              Watch Demo\\n            </Button>\\n          </div>\\n        </div>\\n      </div>\\n    </section>\\n  );\\n};\\n\\nexport default HeroSection;","description":"Created a stunning hero section with gradient background, animated badge, bold typography, and dual CTA buttons"}`;
 
 // Pre-bundled UI component definitions for iframe preview
 const UI_COMPONENTS_SCRIPT = `
@@ -716,45 +751,94 @@ Deno.serve(async (req) => {
 
     console.log("AI Response received, length:", aiContent.length);
 
-    // Parse AI response (it should be JSON)
+    // Parse AI response with robust error handling
     let parsedResponse;
     try {
-      // Try to extract JSON from the response (in case there's extra text)
-      const jsonMatch = aiContent.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsedResponse = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
+      // Method 1: Direct JSON parse (cleanest case)
+      try {
+        parsedResponse = JSON.parse(aiContent.trim());
+        console.log("Parsed directly as JSON");
+      } catch {
+        // Method 2: Extract from ```json``` code blocks
+        const jsonBlockMatch = aiContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonBlockMatch) {
+          parsedResponse = JSON.parse(jsonBlockMatch[1].trim());
+          console.log("Extracted from markdown code block");
+        } else {
+          // Method 3: Find JSON object pattern
+          const jsonObjectMatch = aiContent.match(/\{[\s\S]*\}/);
+          if (jsonObjectMatch) {
+            // Find the balanced JSON by counting braces
+            const jsonStr = jsonObjectMatch[0];
+            let depth = 0;
+            let endIndex = 0;
+            for (let i = 0; i < jsonStr.length; i++) {
+              if (jsonStr[i] === '{') depth++;
+              if (jsonStr[i] === '}') depth--;
+              if (depth === 0) {
+                endIndex = i + 1;
+                break;
+              }
+            }
+            const balancedJson = jsonStr.substring(0, endIndex);
+            parsedResponse = JSON.parse(balancedJson);
+            console.log("Extracted balanced JSON object");
+          } else {
+            throw new Error("No JSON found in response");
+          }
+        }
       }
+
+      // Validate parsed response
+      if (!parsedResponse.type) {
+        // Legacy format without type - assume component
+        parsedResponse.type = "component";
+      }
+
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
-      // Fallback: create a simple component
-      parsedResponse = {
-        componentName: "GeneratedComponent",
-        code: `import React from 'react';
-import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle } from 'lucide-react';
-
-const GeneratedComponent = () => {
-  return (
-    <div className="p-8">
-      <Card className="max-w-md mx-auto">
-        <CardContent className="p-6 text-center">
-          <AlertCircle className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <p className="text-lg font-medium text-gray-900">Component generation in progress...</p>
-          <p className="text-sm text-gray-500 mt-2">Request: ${prompt.replace(/"/g, '\\"')}</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
-
-export default GeneratedComponent;`,
-        description: "Placeholder component - AI response parsing needed improvement"
-      };
+      console.error("Raw AI content (first 500 chars):", aiContent.substring(0, 500));
+      
+      // Return error instead of placeholder component
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "AI response parsing failed",
+          message: "The AI generated an invalid response. Please try again with a clearer prompt.",
+          debug: aiContent.substring(0, 200)
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
+    // Handle conversation type response
+    if (parsedResponse.type === "conversation") {
+      console.log("Returning conversational response");
+      return new Response(
+        JSON.stringify({
+          success: true,
+          type: "conversation",
+          response: parsedResponse.response,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Handle component generation
     const { componentName, code, description } = parsedResponse;
+
+    // Validate required fields
+    if (!componentName || !code) {
+      console.error("Missing required fields in parsed response:", Object.keys(parsedResponse));
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "Invalid component data",
+          message: "The AI response is missing componentName or code. Please try again.",
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Generate live React preview HTML
     const previewHtml = generateLivePreviewHtml(code, componentName);
@@ -771,6 +855,7 @@ export default GeneratedComponent;`,
     return new Response(
       JSON.stringify({
         success: true,
+        type: "component",
         component: result,
         description,
       }),
@@ -780,6 +865,7 @@ export default GeneratedComponent;`,
     console.error("Error in generate-component:", error);
     return new Response(
       JSON.stringify({
+        success: false,
         error: "Failed to generate component",
         message: error instanceof Error ? error.message : "Unknown error",
       }),
